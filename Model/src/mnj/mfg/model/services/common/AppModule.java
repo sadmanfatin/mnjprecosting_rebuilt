@@ -41,7 +41,6 @@ public interface AppModule extends ApplicationModule {
 
     String createOrderLines(String headerId, String lineId);
 
-    void refreshCreateBPODetail();
 
     String createTBAOrder(String headerId);
 

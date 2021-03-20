@@ -761,10 +761,11 @@ public class AppModuleImpl extends ApplicationModuleImpl implements AppModule {
         return (ViewLinkImpl)findViewLink("LineHistoryVL1");
     }
 
-    public void validateLines() {
-
+    public void validateLines() {       
+      //  System.out.println("--------------------------- in validate lines -------------------------------------");
+        
         ViewObject vo = getMnjMfgPrecostingLView1();
-
+        
         RowSetIterator it = vo.createRowSetIterator("it");
 
         HashSet<String> hset = new HashSet<String>();
@@ -951,14 +952,7 @@ public class AppModuleImpl extends ApplicationModuleImpl implements AppModule {
         return (ViewLinkImpl)findViewLink("CreateBPOLinesDetVL1");
     }
     
-    public void refreshCreateBPODetail(){
-        
-        
-       ViewObject vo =  getMnjPrecostCreateBpoDVO1();
-       vo.executeQuery();
-        System.out.println("Excute query-----"+vo.getQuery());
-        
-    }
+ 
     
 
     public String createTBAOrder(String headerId) {

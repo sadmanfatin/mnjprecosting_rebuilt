@@ -113,12 +113,7 @@ public class AppModuleClient extends ApplicationModuleImpl implements AppModule 
         return (String)_ret;
     }
 
-    public void refreshCreateBPODetail() {
-        Object _ret =
-            this.riInvokeExportedMethod(this,"refreshCreateBPODetail",null,null);
-        return;
-    }
-
+  
     public String createTBAOrder(String headerId) {
         Object _ret =
             this.riInvokeExportedMethod(this,"createTBAOrder",new String [] {"java.lang.String"},new Object[] {headerId});
