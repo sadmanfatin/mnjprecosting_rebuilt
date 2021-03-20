@@ -984,7 +984,8 @@ public class MnjMfgPrecostingLImpl extends EntityImpl {
      * @param value value to set the WashName
      */
     public void setWashName(String value) {
-        setAttributeInternal(WASHNAME, value.trim());
+        value = value.trim();
+        setAttributeInternal(WASHNAME, value);
     }
 
     /**

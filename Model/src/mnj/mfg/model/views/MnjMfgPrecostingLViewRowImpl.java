@@ -950,6 +950,7 @@ public class MnjMfgPrecostingLViewRowImpl extends ViewRowImpl {
      * @param value value to set the WASH_NAME
      */
     public void setWashName(String value) {
+        value = value.trim();
         setAttributeInternal(WASHNAME, value);
     }
 

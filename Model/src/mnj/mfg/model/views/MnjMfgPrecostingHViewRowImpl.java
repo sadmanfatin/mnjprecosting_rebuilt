@@ -986,6 +986,7 @@ public class MnjMfgPrecostingHViewRowImpl extends ViewRowImpl {
      * @param value value to set the STYLE_NAME
      */
     public void setStyleName(String value) {
+        value = value.trim();
         setAttributeInternal(STYLENAME, value);
     }
 
@@ -1018,6 +1019,7 @@ public class MnjMfgPrecostingHViewRowImpl extends ViewRowImpl {
      * @param value value to set the STYLE_NO
      */
     public void setStyleNo(String value) {
+        value = value.trim();
         setAttributeInternal(STYLENO, value);
     }
 
@@ -1674,6 +1676,8 @@ public class MnjMfgPrecostingHViewRowImpl extends ViewRowImpl {
      * @param value value to set the STYLE_NAME_NEW
      */
     public void setStyleNameNew(String value) {
+        value = value.trim();
+        
         setAttributeInternal(STYLENAMENEW, value);
     }
 

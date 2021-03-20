@@ -768,6 +768,7 @@ public class MnjMfgPrecostingHImpl extends EntityImpl {
      * @param value value to set the StyleName
      */
     public void setStyleName(String value) {
+        value = value.trim();
         setAttributeInternal(STYLENAME, value);
     }
 
@@ -784,7 +785,8 @@ public class MnjMfgPrecostingHImpl extends EntityImpl {
      * @param value value to set the StyleNo
      */
     public void setStyleNo(String value) {
-        setAttributeInternal(STYLENO, value.trim());
+        value = value.trim();
+        setAttributeInternal(STYLENO, value);
     }
 
     /**
@@ -1344,7 +1346,8 @@ public class MnjMfgPrecostingHImpl extends EntityImpl {
      * @param value value to set the StyleNameNew
      */
     public void setStyleNameNew(String value) {
-        setAttributeInternal(STYLENAMENEW, value.trim());
+        value = value.trim();
+        setAttributeInternal(STYLENAMENEW, value);
     }
 
     /**
