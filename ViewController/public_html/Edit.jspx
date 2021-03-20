@@ -64,7 +64,7 @@
                       <af:commandButton text="Create BPOs" id="cb13"
                                         inlineStyle="height:30px;"
                                         action="goCreateOrder"
-                                        actionListener="#{bindings.refreshCreateBPODetail.execute}"
+                                        actionListener="#{ManagedBean.refreshCreateBPODetail}"
                                         disabled="#{bindings.GmApproval.inputValue=='Y'? 'false':'true'}"/>
                       <af:commandButton text="Create Item" id="cb15"
                                         action="#{ManagedBean.createItem}"
@@ -87,7 +87,8 @@
                       </af:commandButton>
                       <af:commandButton text="Copy" id="cb14"
                                         shortDesc="Copy either pre costing or sub costing"
-                                        inlineStyle="height:30px;">
+                                        inlineStyle="height:30px;"
+                                        disabled="#{bindings.GmApproval.inputValue=='Y'? 'true':'false'}">
                         <af:showPopupBehavior popupId="p1"/>
                       </af:commandButton>
                       <af:commandButton text="Attachment" id="cb24"

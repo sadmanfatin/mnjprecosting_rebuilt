@@ -2,6 +2,7 @@ package mnj.mfg.model.views;
 
 import mnj.mfg.model.entities.MnjMfgPrecostingItemDImpl;
 
+import oracle.jbo.RowSet;
 import oracle.jbo.domain.Number;
 import oracle.jbo.server.AttributeDefImpl;
 import oracle.jbo.server.ViewRowImpl;
@@ -12,6 +13,7 @@ import oracle.jbo.server.ViewRowImpl;
 // ---    Warning: Do not modify method signatures of generated methods.
 // ---------------------------------------------------------------------
 public class MnjMfgPrecostingItemDViewRowImpl extends ViewRowImpl {
+
     /**
      * This is the default constructor (do not remove).
      */
@@ -25,4 +27,6 @@ public class MnjMfgPrecostingItemDViewRowImpl extends ViewRowImpl {
     public MnjMfgPrecostingItemDImpl getMnjMfgPrecostingItemD() {
         return (MnjMfgPrecostingItemDImpl)getEntity(0);
     }
+
+
 }

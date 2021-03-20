@@ -18,7 +18,9 @@ import java.text.DateFormat;
 
 import java.text.SimpleDateFormat;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.StringTokenizer;
 
 import javax.faces.application.FacesMessage;
@@ -34,6 +36,11 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import mnj.mfg.model.services.AppModuleImpl;
+
+import mnj.mfg.model.views.MnjMfgPrecostingItemDViewImpl;
+import mnj.mfg.model.views.MnjMfgPrecostingItemDViewRowImpl;
+
+import mnj.mfg.model.views.MnjMfgPrecostingLViewRowImpl;
 
 import oracle.adf.model.BindingContext;
 
@@ -348,31 +355,37 @@ public class Main {
         return itemTable;
     }
 
-    public void setFinanceCalc(int marchand) {
+    public void setFinanceCalc(int marchand , Row lineRow) {
         int check=marchand;
-
+        System.out.println(" ==========================   in setFinanceCalc  " );
+    
+        System.out.println("===================    current line id "+ lineRow.getAttribute("LineId")  );
         //  try {
 
         double fabric = 0.00, fobVal = 0.00, trim = 0.00, finalCostPerPcsVal =
             0.00, washTotalVal = 0.00, financialCostValue = 0.00, totalCMVal =
             0.00, refelectedVal = 0, service = 0.0,wash=0.0;
-        DCBindingContainer bindings =
-            (DCBindingContainer)BindingContext.getCurrent().getCurrentBindingsEntry();
-        DCIteratorBinding dcIteratorBindings =
-            bindings.findIteratorBinding("MnjMfgPrecostingItemDView1Iterator");
+         
+        RowSet itemDetailRowSet = (RowSet)lineRow.getAttribute("MnjMfgPrecostingItemDView");
+
         // Get all the rows of a iterator
-        Row[] rows = dcIteratorBindings.getAllRowsInRange();
-        for (Row row : rows) {
+     
+        
+        Row itemDetailRow ;
+        while  (itemDetailRowSet.hasNext()) {
+            itemDetailRow = itemDetailRowSet.next();
             
             /***************************************/
           // refreshFabricFinance(row);
             /***************************************/
-            
+                     
             oracle.jbo.domain.Number prefix =
-                (Number)row.getAttribute("ItemPrefix"); //ItemPrefix
+                (Number)itemDetailRow.getAttribute("ItemPrefix"); //ItemPrefix
             try {
                 finalCostPerPcsVal =
-                        Double.parseDouble(row.getAttribute("FinalCostPerPcs").toString());
+                        Double.parseDouble(itemDetailRow.getAttribute("FinalCostPerPcs").toString());
+                System.out.println("====================== finalCostPerPcsVal  "+finalCostPerPcsVal); 
+                
             } catch (Exception e) {
                 ;
             }
@@ -393,7 +406,7 @@ public class Main {
      //   double washFinanceVal = MyMath.numeric3(getWashFinance());
      //   double trimFinanceVal = MyMath.numeric3(getTrimFinance());
 
-        washTotalVal = getSelectedDryTotal() + getSelectedWetTotal();
+        washTotalVal = getSelectedDryTotal(lineRow) + getSelectedWetTotal(lineRow);
         //            financialCostValue =
         //                    ((fabric * 0.06) - (fabric * (fabricFinanceVal / 100))) +
         //                    ((trim * 0.06) - (trim * (trimFinanceVal / 100))) +
@@ -419,23 +432,25 @@ public class Main {
        System.out.println("...................fabricPrice="+fabricPrice);
         
         double fabricPriceByMrch=0.00;
+        double trimsPriceByMrch=0.00;
+        double washPriceByMrch=0.00;
+      
         try{
-            fabricPriceByMrch=Double.parseDouble((getFabricFinancePrice().getValue().toString()));
+              fabricPriceByMrch=Double.parseDouble( am.getMnjMfgPrecostingHView1().getCurrentRow().getAttribute("FabricFinance").toString() );
         }
         catch(Exception e){
             fabricPriceByMrch=0.00;
         }
         
-        double trimsPriceByMrch=0.00;
+
         try{
-            trimsPriceByMrch=Double.parseDouble((getTrimsFinance().getValue().toString()));
+                trimsPriceByMrch=Double.parseDouble( am.getMnjMfgPrecostingHView1().getCurrentRow().getAttribute("TrimFinance").toString() );             
         }
         catch(Exception e){
             trimsPriceByMrch=0.00;
         }
-        double washPriceByMrch=0.00;
         try{
-            washPriceByMrch=Double.parseDouble((getWashFinanceValue().getValue().toString()));
+            washPriceByMrch=Double.parseDouble( am.getMnjMfgPrecostingHView1().getCurrentRow().getAttribute("WashFinance").toString() );          
         }
         catch(Exception e){
             washPriceByMrch=0.00;
@@ -460,18 +475,37 @@ public class Main {
         
         
 
-        finance.setValue(MyMath.toNumber(MyMath.round(financialCostValue)));
+       // finance.setValue(MyMath.toNumber(MyMath.round(financialCostValue)));
+        lineRow.setAttribute("Finance",financialCostValue);
+        
         AdfFacesContext.getCurrentInstance().addPartialTarget(finance);
 
+        double CmMerchand =0.0, cost = 0.0;
+        try {
+             CmMerchand = Double.parseDouble(lineRow.getAttribute("CmMerchand").toString()  );      
+         } catch (Exception e) {
+             // TODO: Add catch code
+             CmMerchand =0.0;
+            // e.printStackTrace();
+         }
+        try {
+             cost = Double.parseDouble(lineRow.getAttribute("Cost").toString()  );      
+         } catch (Exception e) {
+             // TODO: Add catch code
+             cost =0.0;
+            // e.printStackTrace();
+         }
+        
+        
 
-        refelectedVal = MyMath.numeric(getCmMerchandiser()) - MyMath.numeric(getCost()) - financialCostValue;
+        refelectedVal = CmMerchand - cost  - financialCostValue;
 
 
 
         System.out.println(fabric+"------------------------FOBS value print ------------>"+trim);
         double otherAdjustMent=0.0;
         try{
-            otherAdjustMent=Double.parseDouble(line.getCurrentRow().getAttribute("OtherCharge").toString());
+            otherAdjustMent=Double.parseDouble(lineRow.getAttribute("OtherCharge").toString());
         }
         catch(Exception e){
             otherAdjustMent=0.0;
@@ -486,7 +520,8 @@ public class Main {
         System.out.println("check value fabric="+fabric);
         System.out.println("check value trim="+trim);
         System.out.println("check value wash="+washTotalVal);
-        setFOBValues(trim, fabric, washTotalVal, service, financialCostValue,check);
+        
+        setFOBValues(trim, fabric, washTotalVal, service, financialCostValue, check , lineRow);
 
         System.out.println("check done");
         //        } catch (Exception e) {
@@ -523,47 +558,47 @@ public class Main {
      * ****************************************************************************************************/
 
     public void setFOBValues(double trim, double fabric, double washTotalVal,
-                              double service,double financialCostValue,int check) {
+                              double service,double financialCostValue,int check , Row lineRow) {
         
         
                 format.setMinimumFractionDigits(2);
                
 
-        ViewObject  MnjLineV=am.getMnjMfgPrecostingLView1();
         ViewObject headerVo=am.getMnjMfgPrecostingHView1();
        double otherVal =service;
         /***********************changed by MT*****************************************/
         double samValue=0.00,smvValue=0.00,factoryAvrgEff=0.00,StyleEff=0.00,newCost=0.00;
         
         try{
-            StyleEff =Double.parseDouble((getStyleEff().getValue().toString())); 
+            StyleEff =Double.parseDouble((lineRow.getAttribute("StyleEfficiency").toString())); 
         }
         catch(Exception e) {
            StyleEff=0.00;
         }
         
-        try{
-            samValue =Double.parseDouble((getSamValue().getValue().toString())); 
+        try{          
+            samValue =Double.parseDouble(lineRow.getAttribute("Sam").toString()); 
+            
         }
         catch(Exception e) {
            samValue=0.00;
         }
         factoryAvrgEff=FactoryAvgEff();
         smvValue=SMV();
-        MnjLineV.getCurrentRow().setAttribute("FactoryAvgEf", factoryAvrgEff);
-        MnjLineV.getCurrentRow().setAttribute("Smv",smvValue);
+        lineRow.setAttribute("FactoryAvgEf", factoryAvrgEff);
+        lineRow.setAttribute("Smv",smvValue);
         if(StyleEff != 0){
             newCost=(((samValue*smvValue)/StyleEff)*factoryAvrgEff);
         }
         
         newCost=MyMath.round(newCost);
-        MnjLineV.getCurrentRow().setAttribute("CostNew",newCost);
+        lineRow.setAttribute("CostNew",newCost);
         double totalcost=0.0;
         
       totalcost=financialCostValue+newCost;
         
         newCost=MyMath.round(newCost);
-        MnjLineV.getCurrentRow().setAttribute("CostNew",newCost);
+        lineRow.setAttribute("CostNew",newCost);
         double CM=0.00;
         try{
             CM=Double.parseDouble((getCmMerchad().getValue().toString()));    
@@ -591,7 +626,7 @@ public class Main {
             headerVo.getCurrentRow().getAttribute("CmCalculation").toString();
             double prof=0.00;
             try{
-            prof =Double.parseDouble(MnjLineV.getCurrentRow().getAttribute("Profit").toString());
+            prof =Double.parseDouble(lineRow.getAttribute("Profit").toString());
             }
             catch(Exception e) {
                 prof=calProfit;
@@ -607,21 +642,16 @@ public class Main {
         }
         
         
-        MnjLineV.getCurrentRow().setAttribute("Profit",setProfit);
+        lineRow.setAttribute("Profit",setProfit);
         AdfFacesContext.getCurrentInstance().addPartialTarget(profit);
         
+        lineRow.setAttribute("Cm",MyMath.round(setCm));
         
-        
-        
-        MnjLineV.getCurrentRow().setAttribute("Cm",MyMath.round(setCm));
-        
-        MnjLineV.getCurrentRow().setAttribute("CmManagement",MyMath.round(setManagementCm));
+        lineRow.setAttribute("CmManagement",MyMath.round(setManagementCm));
        
        
         /***********************changed by MT*****************************************/
-       
-       
-       
+ 
         double fob = 0.0;
         
 //        if (MyMath.numeric(getProfit()) > 0 ){
@@ -638,7 +668,7 @@ public class Main {
 
         double commVal =0.0; // MyMath.numeric3(getCommission());
         try {
-            commVal=Double.parseDouble(MnjLineV.getCurrentRow().getAttribute("CommisonPrcnt").toString());
+            commVal=Double.parseDouble(lineRow.getAttribute("CommisonPrcnt").toString());
         }
         catch(Exception e){
             commVal=0.0;
@@ -659,53 +689,41 @@ public class Main {
            fobWithSmsVal =0.0 ;
             System.out.println("Exception value --===================->"+fobWithSmsVal);
         }
-    
-        oracle.adf.view.rich.component.UIXTable table = getSubCostingTable();
-        java.util.Iterator selectionIt = table.getSelectedRowKeys().iterator();
-       
-
-        while (selectionIt.hasNext()) {
-            Object rowKey = selectionIt.next();
-            table.setRowKey(rowKey);
-            int index = table.getRowIndex();
-            FacesCtrlHierNodeBinding row =
-                (FacesCtrlHierNodeBinding)table.getRowData(index);
-                Row selectedRow = row.getRow();
-            selectedRow.setAttribute("FobWitoutComm",
+     
+            lineRow.setAttribute("FobWitoutComm",
                                      Double.parseDouble(format.format(fob)));
             if(fobWithSmsVal > fobWitcommVal){
             
             
-              //  selectedRow.setAttribute("FobWithComm", MyMath.toNumber(MyMath.round(fobWithSmsVal)));
-              selectedRow.setAttribute("FobWithComm", Double.parseDouble(format.format(fobWithSmsVal)));//testCase1
+              //  lineRow.setAttribute("FobWithComm", MyMath.toNumber(MyMath.round(fobWithSmsVal)));
+              lineRow.setAttribute("FobWithComm", Double.parseDouble(format.format(fobWithSmsVal)));//testCase1
               
              
                 
-                selectedRow.setAttribute("Difference",
+                lineRow.setAttribute("Difference",
                                      MyMath.toNumber(Double.parseDouble(format.format(fobWithSmsVal))- targetPrice));
             }else {
                 
-                //selectedRow.setAttribute("FobWithComm", MyMath.toNumber(MyMath.round(fobWitcommVal)));
-               selectedRow.setAttribute("FobWithComm", Double.parseDouble(format.format(fobWithSmsVal))); //testCase1
+                //lineRow.setAttribute("FobWithComm", MyMath.toNumber(MyMath.round(fobWitcommVal)));
+               lineRow.setAttribute("FobWithComm", Double.parseDouble(format.format(fobWithSmsVal))); //testCase1
                
-                selectedRow.setAttribute("Difference",
+                lineRow.setAttribute("Difference",
                                      MyMath.toNumber(Double.parseDouble(format.format(fobWitcommVal))- targetPrice));
-        
         
             }
             
             
-            selectedRow.setAttribute("Fob",
+            lineRow.setAttribute("Fob",
                                     Double.parseDouble(format.format(fobWitcommVal)));
-            selectedRow.setAttribute("FobWithSmsSample",
+            lineRow.setAttribute("FobWithSmsSample",
                                      Double.parseDouble(format.format(fobWithSmsVal)));
-            selectedRow.setAttribute("FabricCost",
+            lineRow.setAttribute("FabricCost",
                                      MyMath.toNumber(MyMath.roundTo3(fabric)));
-            selectedRow.setAttribute("TrimCost",
+            lineRow.setAttribute("TrimCost",
                                      MyMath.toNumber(MyMath.roundTo3(trim)));
-            selectedRow.setAttribute("WashCost",
+            lineRow.setAttribute("WashCost",
                                      MyMath.toNumber(MyMath.roundTo3(washTotalVal)));
-            selectedRow.setAttribute("Others",
+            lineRow.setAttribute("Others",
                                      MyMath.roundTo3(otherVal));
             
 //            if (MyMath.numeric(getProfit()) > 0 ){
@@ -721,15 +739,8 @@ public class Main {
 //                selectedRow.setAttribute("CmManagement",value);
 //                         
 //            }
-        }//end of while loop
+        //end of while loop
        
-       
-       
-       
-        
-       
-        
-        
         
     }
 
@@ -831,62 +842,74 @@ public class Main {
 //
 //    }
     
-        public double getSelectedDryTotal() {
+   
+    public double getSelectedDryTotal(Row lineRow) {
+                
+    //            DCBindingContainer bindings =
+    //                (DCBindingContainer)BindingContext.getCurrent().getCurrentBindingsEntry();
+    //            DCIteratorBinding dcIteratorBindings =
+    //                bindings.findIteratorBinding("DryDetailVO1Iterator");
+            
+            // Get all the rows of a iterator
+            
+          RowSet  dryRowSet = (RowSet)lineRow.getAttribute("DryDetailVO");
+            Row[] rows  = dryRowSet.getAllRowsInRange();
+            
+            double total = 0.00, val = 0.00, val2 = 0.0;
+            
+           
+            
+            for (Row row : rows) {
+                try { //ManualPrice
+                    val =Double.parseDouble(String.valueOf(row.getAttribute("Total")));
+                    val2 =Double.parseDouble(String.valueOf(row.getAttribute("ManualPrice")));
+                } catch (Exception e) {
+                    val2 = 0;
+                }
+                if (val > 0)
+                    total += val;
+                else
+                    total += val2;
+            } //end of for each loop
 
-        DCBindingContainer bindings =
-            (DCBindingContainer)BindingContext.getCurrent().getCurrentBindingsEntry();
-        DCIteratorBinding dcIteratorBindings =
-            bindings.findIteratorBinding("DryDetailVO1Iterator");
-        // Get all the rows of a iterator
-        double total = 0.00, val = 0.00, val2 = 0.0;
-        ;
-        Row[] rows = dcIteratorBindings.getAllRowsInRange();
-        for (Row row : rows) {
-            try { //ManualPrice
-                val =Double.parseDouble(String.valueOf(row.getAttribute("Total")));
-                val2 =Double.parseDouble(String.valueOf(row.getAttribute("ManualPrice")));
-            } catch (Exception e) {
-                val2 = 0;
-            }
-            if (val > 0)
-                total += val;
-            else
-                total += val2;
+            return total;
 
-        } //end of for each loop
+        }   
 
-        return total;
+    public double getSelectedWetTotal(Row lineRow) {
+           
 
-    }
+          
+          RowSet  wetRowSet = (RowSet)lineRow.getAttribute("MnjMfgPrecostingWetDView");
+          Row[] rows = wetRowSet.getAllRowsInRange();
+    
+          double total = 0.00, val = 0.00, val2 = 0.0;
 
-    public double getSelectedWetTotal() {
+          
+    //        System.out.println("====================== dcIteratorBindings.getAllRowsInRange().length  "  + dcIteratorBindings.getAllRowsInRange().length );
+    //        System.out.println("====================== dryRowSet.getAllRowsInRange().length "  + wetRowSet.getAllRowsInRange().length );
+    //        System.out.println("======================  am.MnjMfgPrecostingWetDView1().getAllRowsInRange().length "  + am.getMnjMfgPrecostingWetDView1().getAllRowsInRange().length );
+          
+          
+          for (Row row : rows) {
 
-        DCBindingContainer bindings =
-            (DCBindingContainer)BindingContext.getCurrent().getCurrentBindingsEntry();
-        DCIteratorBinding dcIteratorBindings =
-            bindings.findIteratorBinding("MnjMfgPrecostingWetDView1Iterator");
-        // Get all the rows of a iterator
+              try { //ManualPrice
+                  val  =Double.parseDouble(String.valueOf(row.getAttribute("NewTotalVal")));
+                  val2 =Double.parseDouble(String.valueOf(row.getAttribute("ManualPrice")));
+              } catch (Exception e) {
+                  val2 = 0;
+              }
+              if (val > 0)
+                  total += val;
+              else
+                  total += val2;
 
-        double total = 0.00, val = 0.00, val2 = 0.0;
-        Row[] rows = dcIteratorBindings.getAllRowsInRange();
-        for (Row row : rows) {
+          } //end of for each loop
 
-            try { //ManualPrice
-                val  =Double.parseDouble(String.valueOf(row.getAttribute("NewTotalVal")));
-                val2 =Double.parseDouble(String.valueOf(row.getAttribute("ManualPrice")));
-            } catch (Exception e) {
-                val2 = 0;
-            }
-            if (val > 0)
-                total += val;
-            else
-                total += val2;
+          return total;
 
-        } //end of for each loop
-
-        return total;
-
-    }
+      }
+    
 
     public void setActualUnitPrice(RichInputText actualUnitPrice) {
         this.actualUnitPrice = actualUnitPrice;
@@ -915,33 +938,30 @@ public class Main {
 
     public void commonListener(ValueChangeEvent valueChangeEvent) {
         // Add event code here..
-       
+   
+              //  System.out.println("Component Id in common listener ---> "+valueChangeEvent.getComponent().getId());
         
-       
-                FacesContext facesContext = FacesContext.getCurrentInstance();
-                    UIViewRoot root = facesContext.getViewRoot();
-                System.out.println("Component Id in common listener ---> "+valueChangeEvent.getComponent().getId());
-        
-                RichInputText inputText = (RichInputText)root.findComponent(valueChangeEvent.getComponent().getId());
+              //  RichInputText inputText = (RichInputText)root.findComponent(valueChangeEvent.getComponent().getId());
                // inputText.setValue(valueChangeEvent);
-                if(valueChangeEvent.getNewValue() == null){
-               // inputText.setSubmittedValue(null);
-               // inputText.resetValue();
-                }
-                else{
+                if(valueChangeEvent.getNewValue() != null){
+
                     System.out.println("aluechnged e -> "+valueChangeEvent.getNewValue());
-                    ViewObject linenumber=am.getMnjMfgPrecostingLView1();
+                    
+                 Object o =    valueChangeEvent.getSource();
+               
+                    ViewObject lineVo=am.getMnjMfgPrecostingLView1();
                     try{
                        
-                        linenumber.getCurrentRow().getAttribute("LineId").toString();
-                        System.out.println("..........befor");
-                        refreshValues();
-                        System.out.println("..........after");
+                       refreshValues();
+                       
                     }
                     catch(Exception e) {
                         ;
                     }
+
+
                 }
+               
 
     }
     
@@ -970,14 +990,15 @@ public class Main {
 
 
     public void refreshValues() {
-
+        System.out.println("-=-=-=-=-=--=-==-=-== in refreshValues method -=-=-=-=-=--=-==-=-==");
+         MnjMfgPrecostingItemDViewRowImpl currentItemRow = (MnjMfgPrecostingItemDViewRowImpl)am.getMnjMfgPrecostingItemDView1().getCurrentRow();
         //setOthersValues();
         setMerchValues();
 
         double actualUnitPriceVal = MyMath.numeric(getActualUnitPrice());
-              
+                            
         double addPriceMoqVal = MyMath.numeric(getAddPriceMOQ());
-
+        
         double addChrgLCVal = MyMath.numeric(getAddChargLC());
         double addChrgPrcntVal = MyMath.numeric(getAddChrgPrcnt());
         double addPriceFOBVal = MyMath.numeric(getAddPriceFOB());
@@ -1008,43 +1029,48 @@ public class Main {
             ;
         }
 
-        
-
         double finalUnitPriceVal =
             MyMath.round(actualUnitPriceCalc + addPriceMoqVal + lcCalculated +
                          +addPriceFOBVal);
 
         //if (finalUnitPriceVal > 0)
-        finalUnitPrice.setValue(MyMath.toNumber(MyMath.roundTo4(finalUnitPriceVal)));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(finalUnitPrice);
+        
+         // finalUnitPrice.setValue(MyMath.toNumber(MyMath.roundTo4(finalUnitPriceVal)));
+          currentItemRow.setFinalUnitPrice(MyMath.toNumber(MyMath.roundTo4(finalUnitPriceVal)));
+        
+       
 
         double consperPcsVal = MyMath.numeric(getConsPerPcs());
         double wasteInPercVal = MyMath.numeric(getWasteInPercent());
 
         double wasteInQtyVal = consperPcsVal * (wasteInPercVal / 100);
         // if (wasteInQtyVal > 0)
-        wasteInQty.setValue(MyMath.toNumber(wasteInQtyVal));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(wasteInQty);
+       // wasteInQty.setValue(MyMath.toNumber(wasteInQtyVal));
+        currentItemRow.setWastageInQty(MyMath.toNumber(wasteInQtyVal));
+    
 
         double consWithWasteVal = consperPcsVal * (1 + wasteInPercVal / 100);
         //  if (consWithWasteVal > 0)
-        consWithWaste.setValue(MyMath.toNumber(consWithWasteVal));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(consWithWaste);
+       // consWithWaste.setValue(MyMath.toNumber(consWithWasteVal));
+        currentItemRow.setConsWithWastage(MyMath.toNumber(consWithWasteVal));
+        
+        
 
         double bufferVal = MyMath.numeric(getBuffer());
-       // double finalConsVal = bufferVal + consWithWasteVal;
-       double finalConsVal =  consWithWasteVal;
+        // double finalConsVal = bufferVal + consWithWasteVal;
+        double finalConsVal =  consWithWasteVal;
 
         // if (finalConsVal > 0)
-        finalCons.setValue(MyMath.toNumber(MyMath.round(finalConsVal)));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(finalCons);
-
+       // finalCons.setValue(MyMath.toNumber(MyMath.round(finalConsVal)));
+        currentItemRow.setFinalCons(MyMath.toNumber(MyMath.round(finalConsVal)));       
 
         double costPerPcsVal = (finalUnitPriceVal * finalConsVal)+bufferVal;
         //  if (costPerPcsVal > 0)
-       // costPerPcsVal = Math.ceil((double)MyMath.roundTo3(costPerPcsVal)) ;
-        costPerPcs.setValue(MyMath.toNumber(MyMath.roundUp(costPerPcsVal)));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(costPerPcs);
+        // costPerPcsVal = Math.ceil((double)MyMath.roundTo3(costPerPcsVal)) ;
+
+      //  costPerPcs.setValue(MyMath.toNumber(MyMath.roundUp(costPerPcsVal)));       
+        currentItemRow.setCostPerPcs(MyMath.toNumber(MyMath.roundUp(costPerPcsVal)));
+        
 
         double addDeductCostVal = MyMath.numeric(getAddDeductCost());
         double finalCostPerPcsVal = costPerPcsVal + addDeductCostVal;
@@ -1052,32 +1078,22 @@ public class Main {
         
         double fabFinanceCostVal =0;
         
-//        if(MyMath.numeric(getPrefixCode())== 11 || MyMath.numeric(getPrefixCode())== 12) {
-//            fabFinanceCostVal = finalCostPerPcsVal * (MyMath.numeric3(getFabricFinance())/100);
-//        }
-        fabFinanceCost.setValue(MyMath.toNumber(fabFinanceCostVal));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(fabFinanceCost);
+        //        if(MyMath.numeric(getPrefixCode())== 11 || MyMath.numeric(getPrefixCode())== 12) {
+        //            fabFinanceCostVal = finalCostPerPcsVal * (MyMath.numeric3(getFabricFinance())/100);
+        //        }
+        
+       // fabFinanceCost.setValue(MyMath.toNumber(fabFinanceCostVal));
+        currentItemRow.setFabFinanceCost(MyMath.toNumber(fabFinanceCostVal));
+        
+      
         
         // refreshTotal(finalCostPerPcsVal);
         // if (finalCostPerPcsVal > 0)                   
-        finalCostPerPcs.setValue(MyMath.toNumber(MyMath.roundUp(finalCostPerPcsVal + fabFinanceCostVal)));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(finalCostPerPcs);
-
-   // CHANGE bY BILAL 03MAR17    double costPerLineVal = MyMath.numeric(getCostPerline());
-        double costPerLineVal = MyMath.numeric(getProdCostPerLine());
-        double prodPerLineVal = MyMath.numeric(getProducPerLine());
-    System.out.println("........cost per line"+costPerLineVal);
-    System.out.println("........prod per line"+prodPerLineVal);
-        double costVal = 0.00;
-        if (costPerLineVal != 0 && prodPerLineVal != 0) {
-
-            costVal = costPerLineVal / prodPerLineVal;
-        }
-        // if (costVal > 0)
-        cost.setValue(MyMath.toNumber(MyMath.round(costVal)));
-        AdfFacesContext.getCurrentInstance().addPartialTarget(cost);
-
-
+       // finalCostPerPcs.setValue(MyMath.toNumber(MyMath.roundUp(finalCostPerPcsVal + fabFinanceCostVal)));
+        currentItemRow.setFinalCostPerPcs(MyMath.toNumber(MyMath.roundUp(finalCostPerPcsVal + fabFinanceCostVal)));
+        System.out.println("============== final cost per pcs "+ MyMath.roundUp(finalCostPerPcsVal + fabFinanceCostVal));
+        
+        
         //        double dryCostVal = MyMath.numeric(getDryCost());
         //        double dryProfitVal = MyMath.numeric(getDryProfit());
         //        double dryTotalVal = dryCostVal + dryProfitVal;
@@ -1094,10 +1110,15 @@ public class Main {
         //        if (wetTotalVal > 0)
         //            wetTotal.setValue(MyMath.toNumber(MyMath.round(wetTotalVal)));
         //        AdfFacesContext.getCurrentInstance().addPartialTarget(wetTotal);
-
-        setFinanceCalc(0);
-
-
+        
+        
+        AdfFacesContext.getCurrentInstance().addPartialTarget(finalUnitPrice);
+        AdfFacesContext.getCurrentInstance().addPartialTarget(wasteInQty);
+        AdfFacesContext.getCurrentInstance().addPartialTarget(consWithWaste);
+        AdfFacesContext.getCurrentInstance().addPartialTarget(finalCons);
+        AdfFacesContext.getCurrentInstance().addPartialTarget(costPerPcs);
+        AdfFacesContext.getCurrentInstance().addPartialTarget(fabFinanceCost);
+        AdfFacesContext.getCurrentInstance().addPartialTarget(finalCostPerPcs);
     }
 
 
@@ -1454,47 +1475,26 @@ public class Main {
 
     public String refershButton() {
         // Add event code here...
-        ViewObject testlineVo=am.getMnjMfgPrecostingLView1();
-        remark();
-        trimStyleNoAndName();
-      addStyleTrackinAndBasis();
+        RowSet lineRowSet =
+            (RowSet)am.getMnjMfgPrecostingHView1().getCurrentRow().getAttribute("MnjMfgPrecostingLView");
+        Row lineRow = null;       
         
-        OperationBinding ob = executeOperation("Commit");
-        ob.execute();
-        productionCalculation();
+       // remark(lineRowSet);
+      //  addStyleTrackinAndBasis();
         
-        ViewObject linenumber=am.getMnjMfgPrecostingLView1();
-        try{
-            linenumber.getCurrentRow().getAttribute("LineId").toString();
-            System.out.println("..........befor");
-            refreshValues();
-            setfabricDescription();
-            System.out.println("..........after");
-        }
-        catch(Exception e) {
-            ;
-        }
-        
-        
-        
-        
-        try{
-         
-            double fob=  Double.parseDouble(testlineVo.getCurrentRow().getAttribute("FobWithComm").toString());
-            //double CM= Double.parseDouble( testlineVo.getCurrentRow().getAttribute("Cm").toString());
-            // adjustment();
-        }
-        catch(Exception e){
-            ;
+     while (lineRowSet.hasNext()) {
+            lineRow = lineRowSet.next();
+            //setfabricDescription(lineRow);
+            //calculateAndUpdateCost(lineRow);
+            setFinanceCalc(0, lineRow);
         }
 
+        am.StyleTracking();
+        am.getDBTransaction().commit();
+        
+        this.refreshQueryKeepingCurrentRow(am.getMnjMfgPrecostingLView1());
+        
         AdfFacesContext.getCurrentInstance().addPartialTarget(subCostingTable);
-        // Code For Style Tracking
-        OperationBinding operationBinding = executeOperation("StyleTracking");                
-        operationBinding.execute();
-        // End Code For Style Tracking
-        OperationBinding ob1 = executeOperation("Commit");
-        ob1.execute();
         return null;
     }
 
@@ -1786,7 +1786,7 @@ public class Main {
          //   setTrimFinance(selectedRow.getAttribute("TrimFinance"));
           //  setCommission(selectedRow.getAttribute("CommisonPrcnt"));
 
-            System.out.println("Others Called--->");
+         //   System.out.println("Others Called--->");
         } catch (Exception e) {
             ;
         }
@@ -1813,7 +1813,7 @@ public class Main {
             qty = selectedRow.getAttribute("SmsQty");
 
         }
-        System.out.println("SMS Qty-->" + qty);
+      //  System.out.println("SMS Qty-->" + qty);
         return qty;
     }
 
@@ -1943,14 +1943,14 @@ public class Main {
     
     public double getBPOTotalQty() {
 
-    System.out.println("Level 1");
+   // System.out.println("Level 1");
         BindingContext bindingContext = BindingContext.getCurrent();
         DCDataControl dc =
             bindingContext.findDataControl("AppModuleDataControl"); //
         ApplicationModule am = dc.getApplicationModule();
         ViewObject findViewObject =am.findViewObject("CreateSaleOrderLinesVO1"); //ImpSaleContractDetailEOView1
    
-    System.out.println("Level 2");
+ //   System.out.println("Level 2");
                  
         RowSetIterator it = findViewObject.createRowSetIterator("tt");
         double val = 0.00, total = 0.00;
@@ -1967,7 +1967,7 @@ public class Main {
         } //end of while loop
         it.closeRowSetIterator();
         //return roundTo2(total);
-        System.out.println("Level 3 ---->"+total);
+      //  System.out.println("Level 3 ---->"+total);
         
         return total;
         
@@ -2006,10 +2006,10 @@ public class Main {
 
     public void GetTotalQty(ActionEvent actionEvent) {
         // Add event code here...
-        System.out.println(" Total BPO Qty------------>"+getBPOTotalQty());
+   //     System.out.println(" Total BPO Qty------------>"+getBPOTotalQty());
         totalBpoQty.setValue(getBPOTotalQty());
         AdfFacesContext.getCurrentInstance().addPartialTarget(totalBpoQty);
-        System.out.println(" Total BPO Qty 2------------>"+totalBpoQty.getValue().toString());
+     //   System.out.println(" Total BPO Qty 2------------>"+totalBpoQty.getValue().toString());
         
     }
 
@@ -2128,7 +2128,7 @@ public class Main {
                         //System.out.println("-------------------------------------inside if cond------------------------------------------");
                         //System.out.println("MultiSelect --->" + row.getAttribute("MultiSelect"));
                         String lineId = row.getAttribute("LineId").toString();
-                        System.out.println("line id-------------->" +lineId);
+                      //  System.out.println("line id-------------->" +lineId);
                         populateItemDetails(lineId); /// method to populate data
                         populateWetDetails(lineId);
                         populateDryDetails(lineId);
@@ -2193,7 +2193,7 @@ public class Main {
                     //System.out.println("-------------------------------------populateLinesTestRec------------------------------------------");
                     
                     ViewObject vo = am.getMnjMfgPrecostingItemDView1(); // in which you wants to populate daa
-                    System.out.println("MnjMfgPrecostingItemDView Query: " + '\n'  + vo.getQuery());
+                 //   System.out.println("MnjMfgPrecostingItemDView Query: " + '\n'  + vo.getQuery());
                     removeData(vo);
                     //System.out.println("4");
                     
@@ -2201,7 +2201,7 @@ public class Main {
                             // code to display the rows in the table.
                             Row linerow = vo.createRow();
                             linerow.setNewRowState(Row.STATUS_INITIALIZED);  
-                            System.out.println("resultset getString prefix_desc: "+resultSet.getString("PREFIX_DESC"));
+                           // System.out.println("resultset getString prefix_desc: "+resultSet.getString("PREFIX_DESC"));
                             linerow.setAttribute("PrefixDesc",resultSet.getString("PREFIX_DESC"));
                             //System.out.println(resultSet.getString("PREFIX_DESC"));
                             linerow.setAttribute("RefCode", resultSet.getString("REF_CODE")); 
@@ -2517,13 +2517,13 @@ public class Main {
          }
          
 
-          System.out.println("...................................test header Id= "+ headerId);   
-         System.out.println("...................................test buyerId= "+ buyerId);
-         System.out.println("...................................test season= "+ season);
-         System.out.println("...................................test styleNo= "+ styleNo);
+         // System.out.println("...................................test header Id= "+ headerId);   
+       //  System.out.println("...................................test buyerId= "+ buyerId);
+       //  System.out.println("...................................test season= "+ season);
+       //  System.out.println("...................................test styleNo= "+ styleNo);
          ViewObject  sizeHeaderVo=am.getsizeHeaderVO1();
          sizeHeaderVo.setWhereClause("BPO_NO = '"+currentBpo+"'"+"AND CUSTOMER_ID ='"+buyerId+"'"+"AND SEASON ='"+season+"'"+"AND (  STYLE_NAME ='"+styleNo+"'"+" OR STYLE_NO ='"+styleNo+"')");
-         System.out.println("...................................test bpo No= "+ currentBpo); 
+     //    System.out.println("...................................test bpo No= "+ currentBpo); 
          sizeHeaderVo.executeQuery();
          //check wheather current bpo heabeen generated to standard form;
          if (sizeHeaderVo.getAllRowsInRange().length==0){
@@ -2550,7 +2550,7 @@ public class Main {
 
     public void saveSizeBreakDown(ActionEvent actionEvent) {
         
-        System.out.println("=========================    in      saveSizeBreakDown");
+     //   System.out.println("=========================    in      saveSizeBreakDown");
         ViewObject sizeHeaderVo =  am.getsizeHeaderVO1();
         Row  currentSizeHeaderRow =  sizeHeaderVo.getCurrentRow();
 //        ViewObject lineVo=am.getCustMnjOntSoObinSizline_LineVO1();
@@ -2615,20 +2615,83 @@ public class Main {
 
     
 
-    private void remark() {
-        am.validateLines();
+    private void remark(RowSet LineRowSet) {
+       // am.validateLines();
         String ab="check remark";
-   // String re= am.validateLines();
+
+
+   HashSet<String> hset = new HashSet<String>();
+   HashSet<String> hset1 = new HashSet<String>();
+   ArrayList list= new ArrayList();
+
+   int count = 0;
+   int flag=0;
+   String status = null;
+   while (LineRowSet.hasNext()) {
+       
+       count++;   
+   
+       Row r = LineRowSet.next();
+       String washName = r.getAttribute("WashName").toString();
+       String color = r.getAttribute("Colour").toString();
+       washName = washName.trim().toUpperCase();
+       color = color.trim().toUpperCase();
+       hset.add(washName + color);
+      // System.out.println(" line no  "+  count + "   wash  " + washName + "  color  " + color );
+   if(count!=hset.size()) {
+       list.add(count);
+   
+   String remark =null;
+   // remark=remark.trim().toUpperCase();
+   try{
+     flag++;
+     remark=r.getAttribute("Remarks").toString();
+     remark=remark.trim().toUpperCase();
+     hset1.add(remark);
+     if(flag!=hset1.size()) {
+         String message ="Duplicate remark";
+         FacesMessage fm = new FacesMessage(message);
+         fm.setSeverity(FacesMessage.SEVERITY_INFO);
+         FacesContext context = FacesContext.getCurrentInstance();
+         context.addMessage(null, fm);
+     }
+     
+   }catch(Exception ex){
+     
+     remark="check";
+   }
+   
+   
+    if(remark=="check"){
+        String message ="Check remark";
+        FacesMessage fm = new FacesMessage(message);
+        fm.setSeverity(FacesMessage.SEVERITY_INFO);
+        FacesContext context = FacesContext.getCurrentInstance();
+        context.addMessage(null, fm);
         
-//    if(re=="Same") {
-//        String message ="Check remark";
-//        FacesMessage fm = new FacesMessage(message);
-//        fm.setSeverity(FacesMessage.SEVERITY_INFO);
-//        FacesContext context = FacesContext.getCurrentInstance();
-//        context.addMessage(null, fm);
-//        checkremark();
-//        
-//    }
+        
+    }
+   }
+   
+   } //end
+   
+   //.....................mywork...................//
+   
+  // System.out.println("----------------------------------------------------------------"+list);
+   
+
+   
+   //        if (count == hset.size()) {
+   //            hset = null;
+   //            return "NotSame";
+   //        } else {
+   //
+   //
+   //
+   //            hset = null;
+   //            return "Same";
+   //        }
+
         
         
     }
@@ -2709,11 +2772,11 @@ public class Main {
         try{
             Row currentRow = lineVo.getCurrentRow();
             Key currentRowKey = currentRow.getKey();
-            System.out.println(".....................line 1");
+         //   System.out.println(".....................line 1");
             int rangePosOfCurrentRow = lineVo.getRangeIndexOf(currentRow);
-             System.out.println(".....................line 12");
+        //     System.out.println(".....................line 12");
             int rangeStartBeforeQuery =lineVo.getRangeStart();
-             System.out.println(".....................line 13");
+         //    System.out.println(".....................line 13");
             lineVo.executeQuery();
             lineVo.setRangeStart(rangeStartBeforeQuery);
              System.out.println(".....................line 14");
@@ -2725,14 +2788,14 @@ public class Main {
              *  
              */
             Row[] rows = lineVo.findByKey(currentRowKey, 15);
-             System.out.println(".....................line 16");
+          //   System.out.println(".....................line 16");
             if (rows != null && rows.length == 1)
             {
-                System.out.println(".....................line 17");
+            //    System.out.println(".....................line 17");
                lineVo.scrollRangeTo(rows[0], rangePosOfCurrentRow);
-                System.out.println(".....................line 18");
+            //    System.out.println(".....................line 18");
                lineVo.setCurrentRowAtRangeIndex(lineVo.getRangeIndexOf(rows[0]));
-                System.out.println(".....................line 19");
+             //   System.out.println(".....................line 19");
             }
             }
         catch(Exception e) {
@@ -2907,7 +2970,7 @@ public class Main {
             }
             
             if(val.equalsIgnoreCase("Service Item")){
-                System.out.println("calling custom popup here....");
+           //     System.out.println("calling custom popup here....");
                 RichPopup.PopupHints hints = new RichPopup.PopupHints();
                 getServicePopup().show(hints);
             }
@@ -2940,7 +3003,7 @@ public class Main {
            // callCopy(getSelectRadio().getValue().toString());
             itemView.getCurrentRow().setAttribute("RefCode",test);
            AdfFacesContext.getCurrentInstance().addPartialTarget(itemTable); 
-        System.out.println("............................selected item "+test);
+       // System.out.println("............................selected item "+test);
         } else if (dialogEvent.getOutcome().name().equals("cancel")) {
             BindingContainer bindings = getBindings();
 
@@ -2956,7 +3019,7 @@ public class Main {
         double val=0.0;
         try {
             val =Double.parseDouble(testlineVo.getCurrentRow().getAttribute("Print").toString());
-            System.out.println("........adjust print value : "+val);
+          //  System.out.println("........adjust print value : "+val);
 
         } catch (Exception e) {
            val=0.0 ;
@@ -3160,9 +3223,9 @@ public class Main {
             name="Fabric"; 
         }
         
-        System.out.println("ItemPurchaseType is_----------------->"+itemType);
+       // System.out.println("ItemPurchaseType is_----------------->"+itemType);
         
-        System.out.println("Item name_----------------->"+name);
+     //   System.out.println("Item name_----------------->"+name);
         double value = 0;
         
         String date=null;
@@ -3184,7 +3247,7 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("febric--------------with date---------------------price is"+value);
+      //  System.out.println("febric--------------with date---------------------price is"+value);
         return value;
         
          //end of if condition
@@ -3213,7 +3276,7 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("trims-----------------with date------------------price is"+value);
+     //   System.out.println("trims-----------------with date------------------price is"+value);
         return value;
     }
 
@@ -3240,7 +3303,7 @@ public class Main {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        System.out.println("wash-----------------with date------------------price is"+value);
+      //  System.out.println("wash-----------------with date------------------price is"+value);
         return value;
     }
 
@@ -3300,7 +3363,7 @@ public class Main {
           }
            //end of if condition
         
-        System.out.println(" creation date is ----------------------->"+date);
+     //   System.out.println(" creation date is ----------------------->"+date);
           double srno = 0;
           String stmt = "BEGIN :1 :=mnj_get_Factory_avg_eff(:2,:3); end;";
           java.sql.CallableStatement cs =am.getDBTransaction().createCallableStatement(stmt, 1);
@@ -3334,7 +3397,7 @@ public class Main {
            }
             //end of if condition
            
-           System.out.println(" creation date is ----------------------->"+date);
+         //  System.out.println(" creation date is ----------------------->"+date);
           
           
           double srno = 0;
@@ -3365,7 +3428,7 @@ public class Main {
         catch(Exception e){
             ;
         }
-        System.out.println("the set buyer for saleorder upper block is= "+custId);
+       // System.out.println("the set buyer for saleorder upper block is= "+custId);
        saleorder.getCurrentRow().setAttribute("BuyerId", custId);
         // sizeLineVO.executeQuery();
         
@@ -3383,7 +3446,7 @@ public class Main {
         catch(Exception e){
             ;
         }
-        System.out.println("the set buyer for saleorder downblock block is= "+custId);
+      //  System.out.println("the set buyer for saleorder downblock block is= "+custId);
         saleorder.getCurrentRow().setAttribute("BuyerId", custId);
         // sizeLineVO.executeQuery();
         
@@ -3400,43 +3463,18 @@ public class Main {
         saleorder.executeQuery();
         ViewObject Header=am.getMnjMfgPrecostingHView1();
         String custId=null;
-        System.out.println("the set buyer for saleorder Sizebrkdwn  block is= "+custId);
+      //  System.out.println("the set buyer for saleorder Sizebrkdwn  block is= "+custId);
         try{
             custId=Header.getCurrentRow().getAttribute("BuyerId").toString();
         }
         catch(Exception e){
             ;
         }
-        System.out.println("the set buyer for saleorder Sizebrkdwn  block is= "+custId);
+      //  System.out.println("the set buyer for saleorder Sizebrkdwn  block is= "+custId);
         saleorder.getCurrentRow().setAttribute("CustId",custId);
         // sizeLineVO.executeQuery();
     }
 
-
-    public String SaveManagementCal() {
-        
-            OperationBinding ob = executeOperation("Commit");
-            ob.execute();
-            
-            ViewObject linenumber=am.getMnjMfgPrecostingLView1();
-            try{
-                linenumber.getCurrentRow().getAttribute("LineId").toString();
-                System.out.println("..........befor");
-                setFinanceCalc(1);
-                System.out.println("..........after");
-            }
-            catch(Exception e) {
-                ;
-            }
-            AdfFacesContext.getCurrentInstance().addPartialTarget(subCostingTable);
-          // Code For Style Tracking
-            OperationBinding operationBinding = executeOperation("StyleTracking");                
-            operationBinding.execute();
-            // End Code For Style Tracking
-            OperationBinding ob1 = executeOperation("Commit");
-            ob1.execute();
-        return null;
-    }
 
     public void createBom(ActionEvent actionEvent) {
         // Add event code here...
@@ -3584,16 +3622,7 @@ public class Main {
 //        }
 //        
  //
-       
-       
-       
-      
-      
-      
-     
-       
-      
-     
+
         
        // AdfFacesContext.getCurrentInstance().addPartialTarget( fabricFinancePrice);
             
@@ -3634,7 +3663,7 @@ public class Main {
         
 
                ViewObject pocHeader=am.getMnjMfgPrecostingHView1();
-                System.out.println("validation check");
+            //    System.out.println("validation check");
             //   String orderType = object.toString();
            //    System.out.println(orderType);
                String orderType="",styleName="",styleNo="",season="",buyer="";
@@ -3690,7 +3719,7 @@ public class Main {
                         //rs = appM.getDBTransaction().createStatement(0).executeQuery(query);
                         if (rs.next()) {
                              result = rs.getObject(1).toString();
-                            System.out.println("result = "+result);
+                     //       System.out.println("result = "+result);
                         }               
                         if(result.equals("0")){
                           check = true;
@@ -3763,7 +3792,7 @@ public class Main {
         try{
             
             string=pocHeader.getCurrentRow().getAttribute("ProductionUnit").toString();
-            System.out.println("..........unit= "+string);
+           // System.out.println("..........unit= "+string);
            
             if(string.equalsIgnoreCase("CGL Unit1")){
                 result="341";
@@ -3829,7 +3858,7 @@ public class Main {
       //  System.out.println("Season = " +"Nvl('"+ Season+"',Season) "+" Or style_name = "+"Nvl('"+ StyleName+"',style_name) "+" Or style_no = "+"Nvl('"+ StyleNo+"',style_no)");
       ViewObject FillBPOVO=am.getFillBPOVo1();
         FillBPOVO.setWhereClause("Season = " +"Nvl('"+ season+"',Season) "+"and  Buyer_Id = " +"Nvl('"+ buyer+"',Buyer_Id) "+" And (style_name = "+"Nvl('"+ styleName+"',style_name) "+" Or style_no = "+"Nvl('"+ styleNo+"',style_no))");
-        System.out.println("Season = " + season+" and  Buyer_Id = " + buyer+" And style_name = "+ styleName+" Or style_no = "+ styleNo);
+     //   System.out.println("Season = " + season+" and  Buyer_Id = " + buyer+" And style_name = "+ styleName+" Or style_no = "+ styleNo);
         FillBPOVO.executeQuery();
         //System.out.println("--- END --");
     
@@ -3875,9 +3904,9 @@ public class Main {
                 //System.out.println("BpoNo----"+getPopulateValue(poprow, "BpoNo"));
                 //System.out.println("Category----"+getPopulateValue(poprow, "Category"));
                // linerow.setAttribute("Category",getPopulateValue(poprow, "Category")); //problem to populate in viewobject
-                System.out.println("OrderQty----1");
+             //   System.out.println("OrderQty----1");
               //  System.out.println("OrderQty----"+getPopulateValue(poprow, "OrderedQty"));
-                System.out.println("OrderQty----2");
+               // System.out.println("OrderQty----2");
                 linerow.setAttribute("OrderQty",getPopulateValue(poprow, "OrderedQty"));
                // System.out.println("OrderQty----"+getPopulateValue(poprow, "OrderedQty"));
                 linerow.setAttribute("EndUserDesc",getPopulateValue(poprow, "EndUser"));
@@ -3905,7 +3934,7 @@ public class Main {
         } catch (Exception e) {
             ;
         }
-        System.out.println("return Value----"+value);
+       // System.out.println("return Value----"+value);
         return value;
         
     }
@@ -3997,37 +4026,14 @@ public class Main {
         erks.addScript(FacesContext.getCurrentInstance(), url);
     }
 
-    private void trimStyleNoAndName() {
-        String styleName=null,styleNo=null;
-        ViewObject headerVo=am.getMnjMfgPrecostingHView1();
-        try{
-          styleNo=headerVo.getCurrentRow().getAttribute("StyleNo").toString().trim();
-            headerVo.getCurrentRow().setAttribute("StyleNo",styleNo);
-        }
-        catch(Exception e){
-            ;
-        }
-        
-        try{
-          styleName=headerVo.getCurrentRow().getAttribute("StyleNameNew").toString().trim();
-            headerVo.getCurrentRow().setAttribute("StyleNameNew",styleName);
-        }
-        catch(Exception e){
-            ;
-        }
-        
-       
-       
-        
-        
-    }
+  
 
     private void doTrimsBPOs() {
         ViewObject saleOrderLine =am.getCreateSaleOrderLinesVO1();
         String bpo="",detBpo="";
         
         
-        System.out.println("Method called ======================>");
+      //  System.out.println("Method called ======================>");
                 RowSetIterator it = saleOrderLine.createRowSetIterator("tt");
                 Row currentRow = saleOrderLine.getCurrentRow();
                 int count =0;
@@ -4049,7 +4055,7 @@ public class Main {
                     //trims bpo for each line's detail  *==========================//
                     RowSet child = (RowSet)r.getAttribute("MnjPrecostCreateBpoDVO");
                                Row[] rr = child.getAllRowsInRange();
-                    System.out.println("number of details bpo line:"+rr.length);
+                   // System.out.println("number of details bpo line:"+rr.length);
                     
                     for (Row ro : rr) {
                         String dbpo="";
@@ -4071,7 +4077,7 @@ public class Main {
                     
                 }
                 it.closeRowSetIterator();
-                System.out.println("total return from method " + count);
+              //  System.out.println("total return from method " + count);
               
 
 
@@ -4092,7 +4098,7 @@ public class Main {
         String bpo="",detBpo="";
         
         
-        System.out.println("Method called ======================>");
+       // System.out.println("Method called ======================>");
                 RowSetIterator it = saleOrderLineDet.createRowSetIterator("tt");
                 Row currentRow = saleOrderLineDet.getCurrentRow();
                 int count =0;
@@ -4109,30 +4115,24 @@ public class Main {
                         catch(Exception e){
                             ;
                         } 
-                        
-                        
-                    
-
-                   
-
-                   
+   
                     
                 }
                 it.closeRowSetIterator();
-                System.out.println("total return from method " + count);
+            //    System.out.println("total return from method " + count);
               
         
     }
 
     private void addStyleTrackinAndBasis() {
-        System.out.println("===============================x==========================");
+      //  System.out.println("===============================  addStyleTrackinAndBasis()   ==========================");
         ViewObject header=am.getMnjMfgPrecostingHView1();
         ViewObject styleTracker=am.gettrackingVO1();
         String Tracker=null,division=null,buyer=null;
         
         try{
             buyer=header.getCurrentRow().getAttribute("Buyer").toString();
-            System.out.println("=============================buyer="+buyer);
+         //   System.out.println("=============================buyer="+buyer);
         }catch(Exception e){
             ;
         }
@@ -4140,31 +4140,23 @@ public class Main {
         styleTracker.executeQuery();
         
         Row[] r = styleTracker.getAllRowsInRange();
-        System.out.println("============================length="+r.length);
+       // System.out.println("============================length="+r.length);
         for (Row row : r) {
                 try{
                     Tracker=row.getAttribute("StyleTracking").toString();
-                    System.out.println("=============================tracker="+Tracker);
+                  //  System.out.println("=============================tracker="+Tracker);
                 }catch(Exception e){
                     ;
                 }
                 try{
                     division=row.getAttribute("Division").toString();
-                    System.out.println("=============================division="+division);
+                  //  System.out.println("=============================division="+division);
                 }catch(Exception e){
                     ;
                 }
             
             }
         
-        
-       
-                
-
-                
-                
-        
-       
         header.getCurrentRow().setAttribute("StyleTracking",Tracker);
         header.getCurrentRow().setAttribute("Division",division);
         
@@ -4177,13 +4169,13 @@ public class Main {
                  Row[] r = line.getAllRowsInRange();
                 String value=null;
                 
-        System.out.println("=============================line length="+r.length);
+      //  System.out.println("=============================line length="+r.length);
         for (Row row : r) {
             String statusLine=null;
             try{
                statusLine=row.getAttribute("BpoStatus").toString();
             }catch(Exception e){
-                System.out.println("=============not entered & return to null=================");
+               // System.out.println("=============not entered & return to null=================");
                 row.setAttribute("SaleLineId",value);
                 row.setAttribute("SaleHeaderId",value);
                 
@@ -4199,14 +4191,14 @@ public class Main {
            
             RowSet child = (RowSet)row.getAttribute("MnjPrecostCreateBpoDVO");
             Row[] rr = child.getAllRowsInRange();
-            System.out.println("=============================detail length="+rr.length);
+          //  System.out.println("=============================detail length="+rr.length);
             for (Row dRow : rr){
                 String statusDetail=null;
                 
                 try{
                    statusDetail=dRow.getAttribute("BpoStatus").toString();
                 }catch(Exception e){
-                    System.out.println("=============not entered & return to null=================");
+                 //   System.out.println("=============not entered & return to null=================");
                     dRow.setAttribute("SaleLineId",value);
                     dRow.setAttribute("SaleHeaderId",value);
                 }
@@ -4234,25 +4226,25 @@ public class Main {
                  Row[] r = line.getAllRowsInRange();
                
                 
-        System.out.println("=============================line length="+r.length);
+      //  System.out.println("=============================line length="+r.length);
         for (Row row : r) {
         String itemId=null,headerId=null,lineId=null;
             
             try{
                
                 itemId=row.getAttribute("ItemId").toString();
-                System.out.println("==============================Item_id"+itemId);
+             //   System.out.println("==============================Item_id"+itemId);
             }catch(Exception e){
                 System.out.println("=============enter for itemId setup=================");
                 headerId=row.getAttribute("HeaderId").toString();
                       lineId=row.getAttribute("LineId").toString();
                 ViewObject itemVO=am.getitemCodeVO1();
-                System.out.println("==============================headerId"+headerId);
-                System.out.println("==============================lineId"+lineId);
+              //  System.out.println("==============================headerId"+headerId);
+             //   System.out.println("==============================lineId"+lineId);
                 itemVO.setWhereClause("POC_HEADER_ID = '"+ headerId +"' AND POC_LINE_ID= '"+ lineId +"' ");
                 itemVO.executeQuery();
                 int count = itemVO.getRowCount();
-                System.out.println("==============================count "+count);
+              //  System.out.println("==============================count "+count);
                 if(count==1){
                     Row[] rr = itemVO.getAllRowsInRange();
                     String  itemValue=null;
@@ -4272,7 +4264,7 @@ public class Main {
                              
                         
                         }
-                System.out.println("==============================Item_id found"+itemValue);
+              //  System.out.println("==============================Item_id found"+itemValue);
                  row.setAttribute("ItemId",itemValue);
                 }
                 else{
@@ -4378,8 +4370,8 @@ public class Main {
         }catch(Exception e){
             ;
         }
-        System.out.println("=============================TBA brkdown length="+r.length);
-        System.out.println("=============================TBA checkValue="+checkValue);
+     //   System.out.println("=============================TBA brkdown length="+r.length);
+     //   System.out.println("=============================TBA checkValue="+checkValue);
         for (Row row : r) {
             try{
                value= Integer.parseInt(row.getAttribute("BreakdownQty").toString());
@@ -4388,7 +4380,7 @@ public class Main {
             }
            totalValue=totalValue+value;
         }
-        System.out.println("=============================TBA totalValue="+totalValue);
+    //    System.out.println("=============================TBA totalValue="+totalValue);
         if(totalValue>checkValue){
           return false;
         }else{
@@ -4427,7 +4419,7 @@ public class Main {
                 totalQty=totalQty+qty;
             }
         
-        System.out.println("sizeDetailsQty====================>"+totalQty);
+      //  System.out.println("sizeDetailsQty====================>"+totalQty);
         
         if(totalQty>lineQty){
             return false;
@@ -4437,20 +4429,21 @@ public class Main {
         
        
     }
-    private void setfabricDescription() {
-        System.out.println("febric enter");
-        OperationBinding ob = executeOperation("Commit");
-        ob.execute();
-        ViewObject FabricVo=am.getMnjMfgPrecostingItemDView1();
-        FabricVo.executeQuery();
+    private void setfabricDescription(Row lineRow) {
+        
+        
+        RowSet fabricVoRowSet = (RowSet)lineRow.getAttribute("MnjMfgPrecostingItemDView");
+        
+        
         ViewObject linevo=am.getMnjMfgPrecostingLView1();
+
         try{
             String feb2=null;
             String feb3=null;
             String feb4=null;
            // RowSet child = (RowSet)linevo.getCurrentRow().getAttribute("FebricView");
-            Row[] r = FabricVo.getAllRowsInRange();
-            System.out.println("febric clid row---------------->"+r.length);
+            Row[] r = fabricVoRowSet.getAllRowsInRange();
+          //  System.out.println("febric clid row---------------->"+r.length);
             
             StringBuilder setVal2 = null;
             setVal2 = new StringBuilder();
@@ -4459,12 +4452,7 @@ public class Main {
             StringBuilder setVal4 = null;
             setVal4 = new StringBuilder();
             int count =0,check=0;
-    //            for (Row row : r){
-    //                oracle.jbo.domain.Number prefix = (Number)row.getAttribute("ItemPrefix");
-    //                if ((prefix.intValue() >= 11 && prefix.intValue() <= 12)){
-    //                    count++;
-    //                }
-    //            }
+
             
             for (Row row : r) {
                 
@@ -4488,8 +4476,7 @@ public class Main {
                             feb3=null;
                         }   
                     }
-                   
-                    
+                                      
                    // setVal2.append(String.format(feb2)); 
                    // setVal3.append(String.format(feb3)); 
     //                    if(count!=check) {
@@ -4507,10 +4494,10 @@ public class Main {
             setVal4.append(feb3);
               
             
-            System.out.println("......................feb cont dec string= "+setVal2.toString());
-            System.out.println("......................feb cont dec string= "+setVal4.toString());
-            linevo.getCurrentRow().setAttribute("FabricDesc",setVal2.toString());
-            linevo.getCurrentRow().setAttribute("FabricContent",setVal4.toString());
+          //  System.out.println("......................feb cont dec string= "+setVal2.toString());
+         //   System.out.println("......................feb cont dec string= "+setVal4.toString());
+            lineRow.setAttribute("FabricDesc",setVal2.toString());
+            lineRow.setAttribute("FabricContent",setVal4.toString());
           //  AdfFacesContext.getCurrentInstance().addPartialTarget(fabDescrip);
           AdfFacesContext.getCurrentInstance().addPartialTarget(fabricC);
             AdfFacesContext.getCurrentInstance().addPartialTarget(fabricD);
@@ -4519,15 +4506,9 @@ public class Main {
         catch(Exception e){
             ;
         }
-        
-        
-        
+       
         // String TBA=String.valueOf(TB);
-        
-        
-        
-        
-        
+       
     }
 
     public void setFabricD(RichInputText fabricD) {
@@ -4548,7 +4529,7 @@ public class Main {
 
     private String checkCostingMismatchStatus() {
         
-        System.out.println("---------------- in checkCostingMismatchStatus()");
+       // System.out.println("---------------- in checkCostingMismatchStatus()");
         String functionStatement =   "BEGIN :1 := APPS.XX_COSTING_MISMATCH(:2); end;" ;
                                                   
         String  currentHeaderId= am.getMnjMfgPrecostingHView1().getCurrentRow().getAttribute("HeaderId").toString();
@@ -4593,14 +4574,39 @@ public class Main {
         context.addMessage(null, fm);
         
     }
+
+
+    private void calculateAndUpdateCost(Row row) {
+        // CHANGE bY BILAL 03MAR17    double costPerLineVal = MyMath.numeric(getCostPerline());
+        MnjMfgPrecostingLViewRowImpl lineRow = (MnjMfgPrecostingLViewRowImpl)row;
+        double costPerLineVal = MyMath.numeric(getProdCostPerLine());
+                         
+        double prodPerLineVal = MyMath.numeric(getProducPerLine());
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
+        double costVal = 0.00;
+        if (costPerLineVal != 0 && prodPerLineVal != 0) {
+
+            costVal = costPerLineVal / prodPerLineVal;
+        }
+        // if (costVal > 0)
+        
+       // cost.setValue(MyMath.toNumber(MyMath.round(costVal)));
+        lineRow.setCost(MyMath.toNumber(MyMath.round(costVal)) );
+        
+        
+        
+    }
+  
+
+    public void refreshCreateBPODetail(ActionEvent actionEvent) {
+        // Add event code here...
+      //  System.out.println("------------------------ in refreshCreateBPODetail()");
+        
+        ViewObject vo =  am.getMnjPrecostCreateBpoDVO1();
+        vo.executeQuery();
+        //System.out.println("Excute query ---- 555-"+vo.getQuery());
+      am.getDBTransaction().rollback();  // to roll back any uncomitted data in edit page while going to create order page
+        
+        
+    }
 }//end of class

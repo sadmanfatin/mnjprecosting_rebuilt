@@ -476,9 +476,6 @@
                   ReturnName="data.AppModuleDataControl.methodResults.getProdCostUnitWise_AppModuleDataControl_dataProvider_getProdCostUnitWise_result">
       <NamedData NDName="unitName" NDType="java.lang.String"/>
     </methodAction>
-    <methodAction id="refreshCreateBPODetail" InstanceName="AppModuleDataControl.dataProvider" DataControl="AppModuleDataControl"
-                  RequiresUpdateModel="true" Action="invokeMethod" MethodName="refreshCreateBPODetail"
-                  IsViewObjectMethod="false"/>
     <methodAction id="CopyItemsDetail"
                   InstanceName="AppModuleDataControl.dataProvider"
                   DataControl="AppModuleDataControl" RequiresUpdateModel="true"
